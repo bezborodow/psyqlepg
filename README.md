@@ -1,4 +1,4 @@
-# Psyqlpg: Basic Common SQL Queries for Psycopg
+# Psyqlepg: Basic Common SQL Queries for Psycopg
 
  * [Psycopg Documentation](https://www.psycopg.org/psycopg3/docs/)
 
