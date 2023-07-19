@@ -1,1 +1,1 @@
-# `psyqlepg` Basic Common SQL Queries for Psycopg
+# Psysqlpg: Basic Common SQL Queries for Psycopg

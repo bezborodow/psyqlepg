@@ -1,4 +1,5 @@
 from psycopg import sql
+import re
 
 
 def selectone(conn, table, primary_key, identifier):
@@ -67,6 +68,25 @@ def update(conn, table, primary_key, identifier, **kwargs):
     return conn.execute(query, [*values, identifier])
 
 
+def load_queries(filename):
+    with open(filename) as file:
+        name = None
+        queries = {}
+
+        for line in file:
+            p = re.compile('-- *#([a-z][a-z0-9_]*)', re.IGNORECASE)
+
+            if (m := p.search(line)):
+                name = m.group(1)
+            elif name is not None:
+                if name not in queries:
+                    queries[name] = line
+                else:
+                    queries[name] += line
+
+        return queries
+
+
 class Where:
     def __init__(self, name=None, value=None):
         self.params = []
@@ -96,10 +116,38 @@ class Where:
 
 
 class Table:
+    queries = None
+
     @classmethod
-    def get(cls, conn, identifier, key = None):
+    def get(cls, conn, identifier, key=None):
         return selectone(conn, cls.table, key or cls.primary_key, identifier)
 
     @classmethod
-    def fetch(cls, conn, where):
+    def find(cls, conn, where):
         return selectall(conn, cls.table, where)
+
+    @classmethod
+    def insert(cls, conn, **kwargs):
+        return insert(conn, cls.table, cls.primary_key, **kwargs)
+
+    @classmethod
+    def update(cls, conn, identifier, key=None, **kwargs):
+        return update(conn, cls.table, key or cls.primary_key, identifier, **kwargs)
+
+    @classmethod
+    def query(cls, query_name):
+        if cls.queries is None:
+            cls.queries = load_queries(cls.queryfile)
+        return cls.queries[query_name]
+
+    @classmethod
+    def queryone(cls, conn, query_name, params=None, **kwargs):
+        query = cls.query(query_name)
+        cur = conn.execute(query, params, **kwargs)
+        return cur.fetchone()
+
+    @classmethod
+    def queryall(cls, conn, query_name, params=None, **kwargs):
+        query = cls.query(query_name)
+        cur = conn.execute(query, params, **kwargs)
+        return cur.fetchall()
