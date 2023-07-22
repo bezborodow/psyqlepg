@@ -2,6 +2,34 @@ from psycopg import sql
 import re
 
 
+class Where:
+    def __init__(self, name=None, value=None):
+        self.params = []
+        self.args = []
+        if (name):
+            self.append(name, value)
+
+
+    def append(self, name, value=None):
+        if isinstance(name, sql.Composable):
+            self.params.append(name)
+        else:
+            self.params.append(sql.SQL('{} = %s').format(sql.Identifier(name)))
+            self.args.append(value)
+        return self
+
+    def clause(self):
+        if not self.params:
+            return sql.SQL('true').format()
+
+        return sql.SQL('{params}').format(
+            params=sql.SQL(' and ').join(self.params))
+
+
+    def as_string(self, context):
+        return self.clause().as_string(context)
+
+
 def selectone(conn, table, primary_key, identifier):
     query = sql.SQL('''
         select *
@@ -16,7 +44,7 @@ def selectone(conn, table, primary_key, identifier):
     return cur.fetchone()
 
 
-def selectall(conn, table, where):
+def selectall(conn, table, where=Where()):
     query = sql.SQL('''
         select *
         from {table}
@@ -87,34 +115,6 @@ def load_queries(filename):
         return queries
 
 
-class Where:
-    def __init__(self, name=None, value=None):
-        self.params = []
-        self.args = []
-        if (name):
-            self.append(name, value)
-
-
-    def append(self, name, value=None):
-        if isinstance(name, sql.Composable):
-            self.params.append(name)
-        else:
-            self.params.append(sql.SQL('{} = %s').format(sql.Identifier(name)))
-            self.args.append(value)
-        return self
-
-    def clause(self):
-        if not self.params:
-            return sql.SQL('true').format()
-
-        return sql.SQL('{params}').format(
-            params=sql.SQL(' and ').join(self.params))
-
-
-    def as_string(self, context):
-        return self.clause().as_string(context)
-
-
 class Table:
     queries = None
 
@@ -123,7 +123,7 @@ class Table:
         return selectone(conn, cls.table, key or cls.primary_key, identifier)
 
     @classmethod
-    def find(cls, conn, where):
+    def find(cls, conn, where=Where()):
         return selectall(conn, cls.table, where)
 
     @classmethod
