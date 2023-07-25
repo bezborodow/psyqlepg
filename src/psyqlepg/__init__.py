@@ -50,19 +50,19 @@ def selectall(conn, table, where=Where(), order_by=None):
             select *
             from {table}
             where {where}
-        ''').format(
-                where=where.clause(),
-                table=sql.Identifier(table))
-    else:
-        query = sql.SQL('''
-            select *
-            from {table}
-            where {where}
             order_by {order_by}
         ''').format(
                 where=where.clause(),
                 table=sql.Identifier(table),
                 order_by=sql.Identifier(table))
+    else:
+        query = sql.SQL('''
+            select *
+            from {table}
+            where {where}
+        ''').format(
+                where=where.clause(),
+                table=sql.Identifier(table))
 
     cur = conn.execute(query, where.args)
     return cur.fetchall()
