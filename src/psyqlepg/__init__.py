@@ -50,11 +50,11 @@ def selectall(conn, table, where=Where(), order_by=None):
             select *
             from {table}
             where {where}
-            order_by {order_by}
+            order by {order_by}
         ''').format(
                 where=where.clause(),
                 table=sql.Identifier(table),
-                order_by=sql.Identifier(table))
+                order_by=sql.Identifier(order_by))
     else:
         query = sql.SQL('''
             select *
