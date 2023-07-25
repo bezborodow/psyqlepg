@@ -44,14 +44,25 @@ def selectone(conn, table, primary_key, identifier):
     return cur.fetchone()
 
 
-def selectall(conn, table, where=Where()):
-    query = sql.SQL('''
-        select *
-        from {table}
-        where {where}
-    ''').format(
-            where=where.clause(),
-            table=sql.Identifier(table))
+def selectall(conn, table, where=Where(), order_by=None):
+    if (order_by):
+        query = sql.SQL('''
+            select *
+            from {table}
+            where {where}
+        ''').format(
+                where=where.clause(),
+                table=sql.Identifier(table))
+    else:
+        query = sql.SQL('''
+            select *
+            from {table}
+            where {where}
+            order_by {order_by}
+        ''').format(
+                where=where.clause(),
+                table=sql.Identifier(table),
+                order_by=sql.Identifier(table))
 
     cur = conn.execute(query, where.args)
     return cur.fetchall()
@@ -123,8 +134,8 @@ class Table:
         return selectone(conn, cls.table, key or cls.primary_key, identifier)
 
     @classmethod
-    def find(cls, conn, where=Where()):
-        return selectall(conn, cls.table, where)
+    def find(cls, conn, where=Where(), order_by=None):
+        return selectall(conn, cls.table, where, order_by or cls.order_by)
 
     @classmethod
     def insert(cls, conn, **kwargs):
