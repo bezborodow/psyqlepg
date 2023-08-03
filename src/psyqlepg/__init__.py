@@ -9,7 +9,6 @@ class Where:
         if (name):
             self.append(name, value)
 
-
     def append(self, name, value=None):
         if isinstance(name, sql.Composable):
             self.params.append(name)
@@ -25,6 +24,31 @@ class Where:
         return sql.SQL('{params}').format(
             params=sql.SQL(' and ').join(self.params))
 
+    def as_string(self, context):
+        return self.clause().as_string(context)
+
+
+class List:
+    def __init__(self, value=None):
+        self.params = []
+        self.args = []
+        if (value):
+            self.append(value)
+
+    def append(self, value):
+        if isinstance(value, sql.Composable):
+            self.params.append(value)
+        elif isinstance(value, list):
+            for v in value:
+                self.append(v)
+        else:
+            self.params.append(sql.SQL('%s'))
+            self.args.append(value)
+        return self
+
+    def clause(self):
+        return sql.SQL('{params}').format(
+            params=sql.SQL(', ').join(self.params))
 
     def as_string(self, context):
         return self.clause().as_string(context)
