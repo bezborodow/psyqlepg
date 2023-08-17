@@ -6,4 +6,4 @@ publish:
 
 clean:
 	rm -fr dist
-	rm -fr flask_blueprints.egg-info
+	rm -fr *.egg-info
