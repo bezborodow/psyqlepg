@@ -54,17 +54,33 @@ class List:
         return self.clause().as_string(context)
 
 
+def key_search(primary_key, identifier):
+    '''
+    Generate a where clause to search by primary key.
+    Allows composite indexes to be passed as a tuple.
+    '''
+    where = Where()
+    if type(primary_key) is tuple and type(identifier) is tuple:
+        for k, v in dict(zip(primary_key, identifier)).items():
+            where.append(k, v)
+    else:
+        where.append(primary_key, identifier)
+
+    return where
+
+
 def selectone(conn, table, primary_key, identifier):
+    where = key_search(primary_key, identifier)
     query = sql.SQL('''
         select *
         from {table}
-        where {primary_key} = %s
+        where {where}
         limit 1
     ''').format(
             table=sql.Identifier(table),
-            primary_key=sql.Identifier(primary_key))
+            where=where.clause())
 
-    cur = conn.execute(query, [identifier])
+    cur = conn.execute(query, where.args)
     return cur.fetchone()
 
 
@@ -119,16 +135,17 @@ def update(conn, table, primary_key, identifier, **kwargs):
             sql.Identifier(col),
             value))
 
+    where = key_search(primary_key, identifier)
     query = sql.SQL('''
         update {table}
         set {params}
-        where {primary_key} = %s
+        where {where}
     ''').format(
             table=sql.Identifier(table),
             params=sql.SQL(', ').join(params),
-            primary_key=sql.Identifier(primary_key))
+            where=where.clause())
 
-    return conn.execute(query, [*values, identifier])
+    return conn.execute(query, [*values, *where.args])
 
 
 def load_queries(filename):
