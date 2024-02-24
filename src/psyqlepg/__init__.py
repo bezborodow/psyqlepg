@@ -1,5 +1,74 @@
-from psycopg import sql
 import re
+from psycopg import sql
+from psycopg.rows import namedtuple_row
+from enum import Enum
+from dataclasses import dataclass
+
+
+class TableInfo:
+    def __init__(self, table):
+        self.table = table
+
+
+    def unique_indices(self, conn):
+        '''
+        Search for unique keys (except for primary keys.)
+
+        https://www.postgresql.org/docs/current/functions-info.html
+        '''
+
+        cur = conn.cursor()
+        cur.row_factory = namedtuple_row
+
+        # The indexdef is an array of column names on the unique index.
+        # The relname is the name of the unique index.
+        query = '''
+            select idx.relname,
+                    json_agg(pg_catalog.pg_get_indexdef(a.attrelid, a.attnum, true)) indexdef
+            from pg_catalog.pg_attribute a
+            join pg_class idx on idx.oid = a.attrelid
+            join pg_index pgi on pgi.indexrelid = idx.oid
+            join pg_namespace insp on insp.oid = idx.relnamespace
+            join pg_class tbl on tbl.oid = pgi.indrelid
+            join pg_namespace tnsp on tnsp.oid = tbl.relnamespace
+            where a.attnum > 0
+                and not a.attisdropped
+                and tnsp.nspname = 'public'
+                and pgi.indisunique
+                and not pgi.indisprimary
+                and tbl.relname = %s
+            group by idx.relname
+        '''
+        cur.execute(query, [self.table.table])
+
+        indices = {}
+        while (att := cur.fetchone()):
+            indices[att.relname] = att.indexdef
+
+        return indices
+
+
+class ComparisonOperator(Enum):
+    '''
+    Comparison Operators
+
+    https://www.postgresql.org/docs/current/functions-comparison.html
+    '''
+    LESS_THAN = 1
+    GREATER_THAN = 2
+    LESS_THAN_OR_EQUAL_TO = 3
+    GREATER_THAN_OR_EQUAL_TO = 4
+    EQUAL_TO = 5
+    NOT_EQUAL_TO = 6
+
+
+    def __str__(self):
+        o = ('<', '>', '<=', '>=', '=', '!=')
+        return o[self.value - 1]
+
+
+    def __format__(self, spec):
+        return self.__str__(self)
 
 
 class Where:
@@ -9,20 +78,33 @@ class Where:
         if (name):
             self.append(name, value)
 
-    def append(self, name, value=None):
+
+    def append(self, name,
+               value=None,
+               operator=ComparisonOperator.EQUAL_TO):
+
+        if type(operator) is not ComparisonOperator:
+            raise ValueError('Invalid comparison operator.')
+
         if isinstance(name, sql.Composable):
             self.params.append(name)
         else:
-            self.params.append(sql.SQL('{} = %s').format(sql.Identifier(name)))
+            self.params.append(sql.SQL('{} ' + str(operator) + ' %s').format(sql.Identifier(name)))
             self.args.append(value)
         return self
 
-    def clause(self):
+
+    def clause(self, or_clause=False):
         if not self.params:
             return sql.SQL('true').format()
 
+        if or_clause:
+            return sql.SQL('{params}').format(
+                params=sql.SQL(' or ').join(self.params))
+
         return sql.SQL('{params}').format(
             params=sql.SQL(' and ').join(self.params))
+
 
     def as_string(self, context):
         return self.clause().as_string(context)
@@ -35,6 +117,7 @@ class List:
         if (value):
             self.append(value)
 
+
     def append(self, value):
         if isinstance(value, sql.Composable):
             self.params.append(value)
@@ -46,9 +129,11 @@ class List:
             self.args.append(value)
         return self
 
+
     def clause(self):
         return sql.SQL('{params}').format(
             params=sql.SQL(', ').join(self.params))
+
 
     def as_string(self, context):
         return self.clause().as_string(context)
@@ -57,7 +142,7 @@ class List:
 def key_search(primary_key, identifier):
     '''
     Generate a where clause to search by primary key.
-    Allows composite indexes to be passed as a tuple.
+    Allows composite indices to be passed as a tuple.
     '''
     where = Where()
     if type(primary_key) is tuple and type(identifier) is tuple:
@@ -180,28 +265,46 @@ def load_queries(filename):
         return queries
 
 
-class Table:
+class MetaTable(type):
+    @property
+    def info(cls):
+        return TableInfo(cls)
+
+
+# https://docs.python.org/3/library/dataclasses.html
+@dataclass
+class Table(metaclass=MetaTable):
+    table: str # TODO rename to table_name
+    primary_key: str | tuple[str]
+    columns: dict # TODO dict of objects of type Column.
+    queryfile: str
     queries = None
+
 
     @classmethod
     def get(cls, conn, identifier, key=None):
         return selectone(conn, cls.table, key or cls.primary_key, identifier)
 
+
     @classmethod
     def find(cls, conn, where=Where(), order_by=None):
         return selectall(conn, cls.table, where, order_by or cls.order_by)
+
 
     @classmethod
     def insert(cls, conn, **kwargs):
         return insert(conn, cls.table, **kwargs)
 
+
     @classmethod
     def update(cls, conn, identifier, key=None, **kwargs):
         return update(conn, cls.table, key or cls.primary_key, identifier, **kwargs)
 
+
     @classmethod
     def delete(cls, conn, identifier, key=None):
         return delete(conn, cls.table, key or cls.primary_key, identifier)
+
 
     @classmethod
     def query(cls, query_name):
@@ -209,11 +312,13 @@ class Table:
             cls.queries = load_queries(cls.queryfile)
         return cls.queries[query_name]
 
+
     @classmethod
     def queryone(cls, conn, query_name, params=None, **kwargs):
         query = cls.query(query_name)
         cur = conn.execute(query, params, **kwargs)
         return cur.fetchone()
+
 
     @classmethod
     def queryall(cls, conn, query_name, params=None, **kwargs):
