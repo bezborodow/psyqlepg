@@ -108,19 +108,18 @@ def selectall(conn, table, where=Where(), order_by=None):
     return cur.fetchall()
 
 
-def insert(conn, table, primary_key, **kwargs):
+def insert(conn, table, **kwargs):
     query = sql.SQL('''
         insert into {table} ({fields})
         values ({values})
-        returning {primary_key} as id
+        returning *
     ''').format(
             table=sql.Identifier(table),
             fields=sql.SQL(', ').join(map(sql.Identifier, kwargs)),
-            values=sql.SQL(', ').join(sql.Placeholder() * len(kwargs)),
-            primary_key=sql.Identifier(primary_key))
+            values=sql.SQL(', ').join(sql.Placeholder() * len(kwargs)))
 
     cur = conn.execute(query, list(kwargs.values()))
-    return cur.fetchone().id
+    return cur.fetchone()
 
 
 def update(conn, table, primary_key, identifier, **kwargs):
@@ -140,6 +139,7 @@ def update(conn, table, primary_key, identifier, **kwargs):
         update {table}
         set {params}
         where {where}
+        returning *
     ''').format(
             table=sql.Identifier(table),
             params=sql.SQL(', ').join(params),
@@ -180,7 +180,7 @@ class Table:
 
     @classmethod
     def insert(cls, conn, **kwargs):
-        return insert(conn, cls.table, cls.primary_key, **kwargs)
+        return insert(conn, cls.table, **kwargs)
 
     @classmethod
     def update(cls, conn, identifier, key=None, **kwargs):
