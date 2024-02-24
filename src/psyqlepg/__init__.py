@@ -148,6 +148,19 @@ def update(conn, table, primary_key, identifier, **kwargs):
     return conn.execute(query, [*values, *where.args])
 
 
+def delete(conn, table, primary_key, identifier):
+    where = key_search(primary_key, identifier)
+    query = sql.SQL('''
+        delete from {table}
+        where {where}
+        returning *
+    ''').format(
+            table=sql.Identifier(table),
+            where=where.clause())
+
+    return conn.execute(query, where.args)
+
+
 def load_queries(filename):
     with open(filename) as file:
         name = None
@@ -185,6 +198,10 @@ class Table:
     @classmethod
     def update(cls, conn, identifier, key=None, **kwargs):
         return update(conn, cls.table, key or cls.primary_key, identifier, **kwargs)
+
+    @classmethod
+    def delete(cls, conn, identifier, key=None):
+        return delete(conn, cls.table, key or cls.primary_key, identifier)
 
     @classmethod
     def query(cls, query_name):
