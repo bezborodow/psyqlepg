@@ -8,7 +8,7 @@ class TableInfo:
 
     def unique_indices(self, conn):
         '''
-        Search for unique keys (except for primary keys.)
+        Return unique keys.
         '''
 
         cur = conn.cursor()
@@ -31,7 +31,6 @@ class TableInfo:
                 and not a.attisdropped
                 and tnsp.nspname = 'public'
                 and pgi.indisunique
-                and not pgi.indisprimary
                 and tbl.relname = %s
             group by idx.relname
         '''
@@ -59,7 +58,7 @@ class TableInfo:
             WHERE  i.indrelid = 'tablename'::regclass
             AND    i.indisprimary;
         '''
-		return NotImplemented # TODO
+        return NotImplemented # TODO
 
 
     def columns(self, conn):
