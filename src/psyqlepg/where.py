@@ -48,17 +48,22 @@ class Where:
         return self
 
 
-    def clause(self, or_clause=False):
+    def clause(self):
         if not self.params:
             return sql.SQL('true').format()
 
-        if or_clause:
-            return sql.SQL('{params}').format(
-                params=sql.SQL(' or ').join(self.params))
-
         return sql.SQL('{params}').format(
-            params=sql.SQL(' and ').join(self.params))
+            params=sql.SQL(f' {self.op()} ').join(self.params))
 
 
     def as_string(self, context):
         return self.clause().as_string(context)
+
+
+    def op(self):
+        return 'and'
+
+
+class WhereOr:
+    def op(self):
+        return 'or'

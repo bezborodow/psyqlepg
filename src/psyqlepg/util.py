@@ -34,6 +34,17 @@ def selectone(conn, table, primary_key, identifier):
 
 
 def selectall(conn, table, where=Where(), order_by=None):
+    if type(where) is tuple:
+        where_tuple = where
+        where = Where()
+        where.append(*where_tuple)
+    if type(where) is list:
+        where_list = where
+        where = Where()
+        for w in where_list:
+            if type(w) is tuple:
+                where.append(*w)
+
     if (order_by):
         query = sql.SQL('''
             select *
