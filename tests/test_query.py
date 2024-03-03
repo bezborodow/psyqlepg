@@ -19,7 +19,9 @@ class TestTable(unittest.TestCase):
                     conn,
                     num=7,
                     data='Wololo')
-            self.assertIsNot(None, row)
+            self.assertIs(dict, type(row))
+            self.assertEqual(7, row['num'])
+            self.assertEqual(row['data'], 'Wololo')
             self.assertIsNone(TableTest.queryone(conn, 'get', [row['id'] + 5000]))
             row = TableTest.queryone(conn, 'get', [row['id']])
             self.assertIs(dict, type(row))
