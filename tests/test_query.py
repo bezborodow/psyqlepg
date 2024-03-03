@@ -21,12 +21,12 @@ class TestTable(unittest.TestCase):
                     data='Wololo')
             self.assertIs(dict, type(row))
             self.assertEqual(7, row['num'])
-            self.assertEqual(row['data'], 'Wololo')
+            self.assertEqual('Wololo', row['data'])
             self.assertIsNone(TableTest.queryone(conn, 'get', [row['id'] + 5000]))
             row = TableTest.queryone(conn, 'get', [row['id']])
             self.assertIs(dict, type(row))
             self.assertEqual(7, row['num'])
-            self.assertEqual(row['data'], 'Wololo')
+            self.assertEqual('Wololo', row['data'])
 
 
 
