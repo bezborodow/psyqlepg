@@ -1,6 +1,6 @@
 [project]
 name = "psyqlepg"
-version = "0.4.0"
+version = "0.4.1"
 authors = [
   { name="Damien Bezborodov", email="dbezborodov@gmail.com" },
 ]
@@ -11,6 +11,9 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+]
+dependencies = [
+    "psycopg >= 3.1",
 ]
 
 [project.urls]
