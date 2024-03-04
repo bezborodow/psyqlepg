@@ -12,7 +12,6 @@ class TableTest(Table):
 
 class TestTable(unittest.TestCase):
     def test_table(self):
-        self.assertEqual(1, 1)
         with psycopg.connect(dsn, row_factory=dict_row) as conn:
             conn.execute(TableTest.query('create'))
             row = TableTest.insert(
